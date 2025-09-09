@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lavender Love Letter Game</title>
+<style>
+  body {
+    margin: 0;
+    font-family: "Segoe UI", Arial, sans-serif;
+    background: grey;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    overflow: hidden;
+    flex-direction: column;
+    transition: background 1s ease;
+  }
+
+  #mazeCanvas {
+    border: 4px solid black;
+    background: white;
+    display: none;
+    margin: auto;
+    border-radius: 12px;
+    box-shadow: 0 0 20px rgba(0,0,0,0.5);
+    touch-action: none;
+  }
+
+  #controls {
+    display: none;
+    grid-template-columns: 60px 60px 60px;
+    grid-template-rows: 60px 60px 60px;
+    gap: 5px;
+    margin-top: 10px;
+    justify-content: center;
+    align-items: center;
+  }
+
+  #controls button {
+    background: #aaa;
+    border: none;
+    border-radius: 12px;
+    font-size: 22px;
+    color: white;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    cursor: pointer;
+  }
+
+  .card {
+    max-width: 90%;
+    background: rgba(255,255,255,0.95);
+    padding: 25px;
+    border-radius: 20px;
+    box-shadow: 0 12px 30px rgba(120,60,200,0.25),
+                inset 0 0 15px rgba(200,150,255,0.15);
+    text-align: center;
+    position: relative;
+    z-index: 2;
+    display: none;
+    margin: auto;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    transition: opacity 1s ease;
+  }
+
+  .overlay {
+    display: flex;
+    position: absolute;
+    inset: 0;
+    background: rgba(240,230,255,0.95);
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 15px;
+    z-index: 3;
+    border-radius: 20px;
+    padding: 15px;
+  }
+
+  .btn-start {
+    background: linear-gradient(180deg, #d4bfff, #b497ff);
+    border: none;
+    padding: 12px 26px;
+    border-radius: 30px;
+    color: white;
+    font-weight: bold;
+    cursor: pointer;
+    font-size: 16px;
+    box-shadow: 0 6px 18px rgba(160,120,255,0.35);
+  }
+
+  #playBtn {
+    background: black;
+    color: white;
+    border: 2px solid white;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  }
+  #playBtn:hover {
+    background: white;
+    color: black;
+    border: 2px solid black;
+  }
+
+  .message {
+    font-size: 1.2rem;
+    color: #3b2b4b;
+    font-weight: 500;
+    white-space: pre-wrap;
+    text-align: center;
+    min-height: 150px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    transition: opacity 1s ease;
+  }
+
+  .rose {
+    width: 120px;
+    margin-top: 20px;
+    opacity: 0;
+    transform: scale(0.1);
+    filter: drop-shadow(0 0 10px rgba(255,0,100,0.5));
+    transition: opacity 3s ease, transform 3s ease, filter 3s ease;
+    position: absolute;
+    top: 70%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0.1);
+  }
+  .rose.show {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(3);
+    filter: drop-shadow(0 0 35px rgba(255,0,100,0.9));
+  }
+
+  #finalMessage {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -120%);
+    font-size: 1.5rem;
+    color: #3b2b4b;
+    text-align: center;
+    opacity: 0;
+    transition: opacity 2s ease;
+  }
+
+  .introImage {
+    width: 100%;
+    max-width: 600px; /* you can adjust max size */
+    height: auto;
+    margin: 15px auto;
+    display: none;
+    border-radius: 12px;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.25);
+  }
+</style>
+</head>
+<body>
+
+<!-- Play Button -->
+<div id="playContainer">
+  <button id="playBtn" class="btn-start">Play</button>
+</div>
+
+<!-- Maze Game -->
+<canvas id="mazeCanvas" width="360" height="360"></canvas>
+<div id="controls">
+  <div></div><button onclick="movePlayer(0,-1)">⬆</button><div></div>
+  <button onclick="movePlayer(-1,0)">⬅</button><div></div><button onclick="movePlayer(1,0)">➡</button>
+  <div></div><button onclick="movePlayer(0,1)">⬇</button><div></div>
+</div>
+
+<!-- Card for Letter -->
+<div id="card" class="card">
+  <div id="overlay" class="overlay">
+    <button id="startBtn" class="btn-start">Open</button>
+  </div>
+  <div id="message" class="message"></div>
+  <img id="img1" class="introImage" src="pic1.jpg" alt="Picture 1">
+  <img id="img2" class="introImage" src="pic2.jpg" alt="Picture 2">
+  <img id="img3" class="introImage" src="pic3.jpg" alt="Picture 3">
+</div>
+
+<img id="rose" class="rose" src="rose.png" alt="Rose">
+<div id="finalMessage">Flowers for you po!</div>
+<audio id="bgMusic" src="araw_araw.mp3" loop></audio>
+
+<script>
+// Maze setup
+const canvas = document.getElementById("mazeCanvas");
+const ctx = canvas.getContext("2d");
+const tileSize = 40;
+
+const maze = [
+  [0,1,1,1,0,1,1,1,0],
+  [0,0,0,1,0,0,0,1,0],
+  [1,1,0,1,1,1,0,1,0],
+  [0,0,0,0,0,1,0,1,0],
+  [0,1,1,1,0,1,0,1,0],
+  [0,1,0,0,0,0,0,1,0],
+  [0,1,0,1,1,1,0,1,0],
+  [0,0,0,0,0,0,0,0,0],
+  [1,1,1,1,1,1,1,1,2]
+];
+let player = {x:0, y:0};
+
+function drawMaze() {
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  for(let y=0; y<maze.length; y++) {
+    for(let x=0; x<maze[y].length; x++) {
+      if(maze[y][x] === 1) {
+        ctx.fillStyle = "black";
+        ctx.fillRect(x*tileSize, y*tileSize, tileSize, tileSize);
+      } else if(maze[y][x] === 2) {
+        ctx.fillStyle = "black";
+        ctx.font = "28px Arial";
+        ctx.fillText("🚪", x*tileSize+5, y*tileSize+28);
+      }
+    }
+  }
+  ctx.fillStyle = "#444";
+  ctx.fillRect(player.x*tileSize+6, player.y*tileSize+6, tileSize-12, tileSize-12);
+}
+
+function movePlayer(dx,dy) {
+  const newX = player.x+dx;
+  const newY = player.y+dy;
+  if(newX>=0 && newX<maze[0].length && newY>=0 && newY<maze.length) {
+    if(maze[newY][newX] !== 1) player.x=newX, player.y=newY;
+  }
+  if(maze[player.y][player.x] === 2) {
+    document.getElementById("mazeCanvas").style.display="none";
+    document.getElementById("controls").style.display="none";
+    document.getElementById("card").style.display="flex";
+    document.getElementById("overlay").style.display="flex";
+    document.body.style.background = "radial-gradient(circle at top, #f7e9ff, #e6d6ff, #d9cfff)";
+  }
+  drawMaze();
+}
+
+// Keyboard controls
+window.addEventListener("keydown",(e)=>{
+  if(e.key==="ArrowUp") movePlayer(0,-1);
+  if(e.key==="ArrowDown") movePlayer(0,1);
+  if(e.key==="ArrowLeft") movePlayer(-1,0);
+  if(e.key==="ArrowRight") movePlayer(1,0);
+});
+
+// Touch controls
+let startX, startY;
+canvas.addEventListener("touchstart",(e)=>{
+  const t = e.touches[0];
+  startX = t.clientX;
+  startY = t.clientY;
+});
+canvas.addEventListener("touchend",(e)=>{
+  const t = e.changedTouches[0];
+  const dx = t.clientX - startX;
+  const dy = t.clientY - startY;
+  if(Math.abs(dx) > Math.abs(dy)){
+    if(dx>30) movePlayer(1,0);
+    else if(dx<-30) movePlayer(-1,0);
+  } else {
+    if(dy>30) movePlayer(0,1);
+    else if(dy<-30) movePlayer(0,-1);
+  }
+});
+
+// Play button
+const playBtn = document.getElementById("playBtn");
+const playContainer = document.getElementById("playContainer");
+playBtn.onclick = () => {
+  playContainer.style.display = "none";
+  canvas.style.display = "block";
+  document.getElementById("controls").style.display = "grid";
+  drawMaze();
+};
+
+// Sequence after Open
+const startBtn = document.getElementById("startBtn");
+const messageDiv = document.getElementById("message");
+const rose = document.getElementById("rose");
+const finalMessage = document.getElementById("finalMessage");
+const music = document.getElementById("bgMusic");
+
+const introTexts = [
+  { text: "Playing Araw-Araw by Ben&Ben 🎶" },
+  { text: "Instruments playing… 🎸🥁🎹" }
+];
+
+const letterParts = [
+  { text: "Hello po!", delay: 4000 },
+  { text: "Stephenie Marie Duron Salcedo 💜", delay: 6000 },
+  { text: "ay, baby na nga pala…", delay: 4000 },
+  { text: "BABYYY!!!", delay: 4000 },
+  { text: "Surprise! 🎉", delay: 4000 },
+  { text: "Happy 1st monthsary ng panliligaw ko sayo!", delay: 5000 },
+  { text: "akala mo siguro babatiin lang kita, noh?", delay: 5000 },
+  { text: "syempree ako na toh", delay: 4000 },
+  { text: "alam ko iniisip mo ngayon", delay: 4000 },
+  { text: "abot ba dyan yung ka hanginan ko?", delay: 4000 },
+  { text: "syempre naman may ibubuga to e", delay: 4000 },
+  { text: "so ito na po...", delay: 4000 },
+  { text: "baby, gusto ko lang sabihin sayo na thank you...", delay: 6000 },
+  { text: "thank you kasi pumayag ka na icourt kita", delay: 5000 },
+  { text: "baby, sana hindi ka mapagod sa ugali ko kasi iba ka sa lahat at hinding hindi kita kayang ipagpalit mahal na mahal kita", delay: 15000 },
+  { text: "kahit may tampuhan o away, wag na wag kang susuko ha", delay: 5000 },
+  { text: "kasi meeting you was the best thing in my life, and loving you is the best decision I’ve ever made", delay: 12000 },
+  { text: "I will always love you even during your toughest times, so you never have to pretend you’re okay when you’re not", delay: 14000 },
+  { text: "sabi ko naman sayo na pwede mo akong sabihan kahit sa tingin mo na hindi important pero para sakin important yon ", delay: 14000 },
+  { text: "wag na wag ka pong mahihiyang mag sabi sakin kasi kaya nga ako nandito para maging crying shoulder mo pag nahihirapan ka na or hindi mo na kaya", delay: 18000 },
+  { text: "at tulad ng kanta na “Araw-Araw” ng Ben&Ben, palagi kitang pipiliin hindi lang ngayon, kundi sa bawat bukas na darating", delay: 14000 },
+  { text: "kahit may gulo, selos, o hirap na dumaan, ikaw at ikaw lang ang pipiliin ko araw-araw", delay: 10000 },
+  { text: "hanggang huli, ikaw lang palagi dahil ikaw ang tahanan at pinakamagandang parte ng buhay ko", delay: 10000},
+  { text: "once again", delay: 4000 },
+  { text: "thank you po ulit for letting me court you, and happy 1st monthsary to my one and only baby", delay: 10000 },
+  { text: "sana nagustuhan mo yung surprise ko para sayoo", delay: 5000 }
+];
+
+startBtn.onclick = async function () {
+  document.getElementById("overlay").style.display = "none";
+  music.play().catch(()=>alert("Tap again to allow music"));
+
+  // Playing Araw-Araw (31s)
+  messageDiv.textContent = "";
+  for (let j = 0; j < introTexts[0].text.length; j++) {
+    messageDiv.textContent += introTexts[0].text.charAt(j);
+    await new Promise(resolve => setTimeout(resolve, 40));
+  }
+  await new Promise(resolve => setTimeout(resolve, 31000)); // 31 seconds
+  messageDiv.textContent = ""; // disappear
+
+  // Instruments playing (13s)
+  for (let j = 0; j < introTexts[1].text.length; j++) {
+    messageDiv.textContent += introTexts[1].text.charAt(j);
+    await new Promise(resolve => setTimeout(resolve, 40));
+  }
+  await new Promise(resolve => setTimeout(resolve, 13000)); // 13 seconds
+  messageDiv.textContent = ""; // disappear
+
+  // Pictures 1–3 (4s each, no pause)
+  const pics = [document.getElementById("img1"), document.getElementById("img2"), document.getElementById("img3")];
+  for (let i = 0; i < pics.length; i++) {
+    pics[i].style.display = "block";
+    await new Promise(resolve => setTimeout(resolve, 3000)); // 4 seconds each
+    pics[i].style.display = "none";
+  }
+
+  // Letter
+  for (let i = 0; i < letterParts.length; i++) {
+    messageDiv.textContent = "";
+    const part = letterParts[i];
+    for (let j = 0; j < part.text.length; j++) {
+      messageDiv.textContent += part.text.charAt(j);
+      await new Promise(resolve => setTimeout(resolve, 30));
+    }
+    await new Promise(resolve => setTimeout(resolve, part.delay));
+  }
+
+  // Fade card
+  const card = document.getElementById("card");
+  card.style.opacity = 0;
+  await new Promise(resolve => setTimeout(resolve, 1000));
+
+  // Show flowers message + rose
+  finalMessage.style.opacity = 1;
+  rose.classList.add("show");
+  await new Promise(resolve => setTimeout(resolve, 3000));
+  finalMessage.style.opacity = 0;
+};
+</script>
+</body>
+</html>
